@@ -1,0 +1,11 @@
+streamlit
+pandas
+openai
+PyPDF2
+cryptography
+SQLAlchemy
+cloud-sql-python-connector[pg8000]
+pg8000
+firebase-admin
+requests
+stripe
