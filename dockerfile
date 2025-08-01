@@ -14,4 +14,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # ### MODIFIÉ ### : Commande de démarrage plus robuste
-CMD ["ls", "-laR", "/app"]
+CMD ["sh", "-c", "exec python -m streamlit run app.py --server.port=${PORT:-8080} --server.enableCORS=false --server.enableXsrfProtection=false"]
