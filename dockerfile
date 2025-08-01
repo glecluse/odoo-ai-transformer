@@ -1,17 +1,20 @@
-# Fichier : Dockerfile
+# Dockerfile
 
-# Utilise une image Python 3.11 officielle comme base
 FROM python:3.11-slim
 
-# Définit le répertoire de travail dans le conteneur
+# Installe les bibliothèques système requises pour cryptography, pg8000, etc.
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libffi-dev \
+    libpq-dev \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-# Copie le fichier des dépendances et les installe
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copie le reste du code de votre application
 COPY . .
 
-# ### MODIFIÉ ### : Commande de démarrage plus robuste
-CMD ["sh", "-c", "exec python -m streamlit run app.py --server.port=${PORT:-8080} --server.enableCORS=false --server.enableXsrfProtection=false"]
+CMD ["streamlit", "run", "app.py", "--server.port=8080", "--server.enableCORS=false", "--server.enableXsrfProtection=false"]

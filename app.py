@@ -77,17 +77,14 @@ if st.session_state.user_info is None:
     st.warning("Veuillez vous connecter ou vous inscrire pour utiliser l'application.")
     st.stop()
 
-# Si l'email n'est pas vérifié, on affiche un message et un bouton de rafraîchissement
 if not st.session_state.user_info['email_verified']:
     st.warning("Votre e-mail n'a pas encore été vérifié. Veuillez cliquer sur le lien qui vous a été envoyé.")
     st.info("Une fois que vous avez cliqué sur le lien, cliquez sur le bouton ci-dessous.")
-    
     if st.button("J'ai vérifié mon e-mail, rafraîchir mon statut"):
         id_token = st.session_state.user_info.get("idToken")
         if id_token:
             st.session_state.user_info = get_user_profile(id_token)
             st.rerun()
-            
     st.stop()
 
 # L'utilisateur est connecté ET vérifié, on peut continuer
@@ -98,7 +95,9 @@ user_db_data = get_or_create_user(user_id, user_email)
 # --- VÉRIFICATION DE L'ABONNEMENT ---
 stripe.api_key = st.secrets["stripe"]["secret_key"]
 
-# Vérifie si l'utilisateur revient d'un paiement réussi
+# ### NOUVEAU ### : Définition de l'URL de base de votre application
+BASE_URL = "https://odoo-ai-transformer-app-421844406357.europe-west9.run.app"
+
 if "session_id" in st.query_params:
     session_id = st.query_params["session_id"]
     try:
@@ -109,22 +108,19 @@ if "session_id" in st.query_params:
                 update_user_subscription(user_id, "active")
                 st.success("Merci pour votre abonnement ! L'application est maintenant débloquée.")
                 st.info("Vous pouvez maintenant connecter votre base Odoo.")
-                # Met à jour les données locales de l'utilisateur et efface le paramètre de l'URL
                 user_db_data = get_or_create_user(user_id, user_email)
                 st.query_params.clear()
-
     except Exception as e:
         st.error(f"Erreur lors de la vérification de la session de paiement : {e}")
 
-# Bloque l'accès si l'abonnement n'est pas actif
 if user_db_data.get("subscription_status") != "active":
     st.warning("Vous devez être abonné pour utiliser cette fonctionnalité.")
     try:
         checkout_session = stripe.checkout.Session.create(
             line_items=[{'price': st.secrets["stripe"]["price_id"], 'quantity': 1}],
             mode='subscription',
-            success_url=st.get_option("server.baseUrlPath") + "?session_id={CHECKOUT_SESSION_ID}",
-            cancel_url=st.get_option("server.baseUrlPath"),
+            success_url=BASE_URL + "/?session_id={CHECKOUT_SESSION_ID}", # Utilise la nouvelle URL
+            cancel_url=BASE_URL, # Utilise la nouvelle URL
             customer_email=user_email,
             metadata={'user_id': user_id}
         )
