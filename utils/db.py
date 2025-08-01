@@ -1,26 +1,29 @@
-# Fichier : utils/db.py
 import streamlit as st
+import os
 from sqlalchemy import create_engine, text
 from google.cloud.sql.connector import Connector
-from google.oauth2 import service_account # Import nécessaire
-
-# ### MODIFIÉ ### : Initialisation manuelle des identifiants
-try:
-    # On charge les informations du compte de service depuis les secrets de Streamlit
-    creds_dict = dict(st.secrets["firebase_service_account"])
-    credentials = service_account.Credentials.from_service_account_info(creds_dict)
-    
-    # On initialise le connecteur en lui fournissant les identifiants
-    connector = Connector(credentials=credentials)
-
-except Exception as e:
-    st.error(f"Impossible d'initialiser le connecteur Google Cloud SQL : {e}")
-    connector = None
+from google.oauth2 import service_account
 
 def get_engine():
-    """Crée une connexion SQLAlchemy sécurisée à la base Cloud SQL."""
-    if not connector:
-        return None
+    """
+    Crée une connexion intelligente qui fonctionne localement ET sur Cloud Run.
+    """
+    
+    # Si la variable d'env K_SERVICE existe, on est sur Cloud Run.
+    # L'authentification est automatique via le compte de service du service Cloud Run.
+    if "K_SERVICE" in os.environ:
+        connector = Connector()
+    # Sinon, on est en local. On utilise le fichier de service account des secrets.
+    else:
+        try:
+            creds_dict = dict(st.secrets["firebase_service_account"])
+            credentials = service_account.Credentials.from_service_account_info(creds_dict)
+            connector = Connector(credentials=credentials)
+        except Exception as e:
+            st.error(f"Erreur d'initialisation du connecteur en local : {e}")
+            return None
+
+    # Logique de connexion commune
     try:
         instance_connection_name = st.secrets["database"]["instance_connection_name"]
         db_user = st.secrets["database"]["db_user"]
@@ -35,8 +38,7 @@ def get_engine():
         engine = create_engine("postgresql+pg8000://", creator=get_conn)
         return engine
     except Exception as e:
-        st.error(f"Erreur de configuration de la base de données : {e}")
-        st.info("Vérifiez la section [database] dans votre fichier .streamlit/secrets.toml.")
+        st.error(f"Erreur de configuration de la base de données. Vérifiez vos secrets. Erreur: {e}")
         return None
 
 engine = get_engine()
@@ -44,6 +46,7 @@ engine = get_engine()
 def init_db():
     """Crée les tables si elles n'existent pas."""
     if not engine:
+        st.error("La connexion à la base de données a échoué. L'application ne peut pas démarrer.")
         return
     with engine.connect() as connection:
         connection.execute(text("""
