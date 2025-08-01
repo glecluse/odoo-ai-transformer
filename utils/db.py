@@ -2,10 +2,17 @@
 import streamlit as st
 from sqlalchemy import create_engine, text
 from google.cloud.sql.connector import Connector
+from google.oauth2 import service_account # Import nécessaire
 
-# Initialise le connecteur Cloud SQL
+# ### MODIFIÉ ### : Initialisation manuelle des identifiants
 try:
-    connector = Connector()
+    # On charge les informations du compte de service depuis les secrets de Streamlit
+    creds_dict = dict(st.secrets["firebase_service_account"])
+    credentials = service_account.Credentials.from_service_account_info(creds_dict)
+    
+    # On initialise le connecteur en lui fournissant les identifiants
+    connector = Connector(credentials=credentials)
+
 except Exception as e:
     st.error(f"Impossible d'initialiser le connecteur Google Cloud SQL : {e}")
     connector = None
@@ -65,7 +72,6 @@ def get_or_create_user(user_id: str, email: str):
     if not engine: return None
     
     with engine.connect() as connection:
-        # ### MODIFIÉ ### : Utilisation de ON CONFLICT pour éviter les erreurs de duplication
         insert_sql = text("""
             INSERT INTO users (user_id, email)
             VALUES (:user_id, :email)
@@ -73,7 +79,6 @@ def get_or_create_user(user_id: str, email: str):
         """)
         connection.execute(insert_sql, {"user_id": user_id, "email": email})
         
-        # On récupère l'utilisateur qui est maintenant garanti d'exister
         user_query = text("SELECT * FROM users WHERE user_id = :user_id")
         user = connection.execute(user_query, {"user_id": user_id}).first()
         connection.commit()
