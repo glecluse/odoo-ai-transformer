@@ -1,0 +1,5 @@
+# Fichier .gitignore
+
+.streamlit/secrets.toml
+.streamlit/firebase-service-account.json
+connections.db
