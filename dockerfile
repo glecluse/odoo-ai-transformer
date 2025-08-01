@@ -14,4 +14,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # ### MODIFIÉ ### : Commande de démarrage plus robuste
-CMD ["python", "test_db.py"]
+CMD ["ls", "-laR", "/app"]
