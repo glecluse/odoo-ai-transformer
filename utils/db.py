@@ -1,3 +1,4 @@
+# Fichier : utils/db.py
 import streamlit as st
 import os
 from sqlalchemy import create_engine, text
@@ -6,9 +7,17 @@ from google.oauth2 import service_account
 
 def get_engine():
     """Crée une connexion intelligente qui fonctionne localement ET sur Cloud Run."""
+    print("DEBUG: Tentative de création du moteur de base de données...")
+
+    connector = None # Initialise à None
+
+    # Si la variable d'env K_SERVICE existe, on est sur Cloud Run.
     if "K_SERVICE" in os.environ:
+        print("DEBUG: Environnement Cloud Run détecté. Authentification automatique.")
         connector = Connector()
+    # Sinon, on est en local. On utilise le fichier de service account des secrets.
     else:
+        print("DEBUG: Environnement local détecté. Utilisation des secrets.")
         try:
             creds_dict = dict(st.secrets["firebase_service_account"])
             credentials = service_account.Credentials.from_service_account_info(creds_dict)
@@ -16,24 +25,36 @@ def get_engine():
         except Exception as e:
             st.error(f"Erreur d'initialisation du connecteur en local : {e}")
             return None
+
+    # Logique de connexion commune
     try:
         instance_connection_name = st.secrets["database"]["instance_connection_name"]
         db_user = st.secrets["database"]["db_user"]
         db_pass = st.secrets["database"]["db_pass"]
         db_name = st.secrets["database"]["db_name"]
+        print(f"DEBUG: Connexion à l'instance '{instance_connection_name}' avec l'utilisateur '{db_user}'.")
+
         def get_conn():
             conn = connector.connect(
                 instance_connection_name, "pg8000",
                 user=db_user, password=db_pass, db=db_name
             )
             return conn
+
         engine = create_engine("postgresql+pg8000://", creator=get_conn)
+        print("DEBUG: Moteur SQLAlchemy créé avec succès.")
         return engine
     except Exception as e:
         st.error(f"Erreur de configuration de la base de données. Vérifiez vos secrets. Erreur: {e}")
+        print(f"DEBUG: ÉCHEC de la création du moteur. Erreur : {e}")
         return None
+# ### NOUVEAU ### : Vérification critique au démarrage
+if engine is None:
+    # Cette erreur arrêtera l'application net et sera visible dans les logs
+    raise RuntimeError("ERREUR CRITIQUE : Le moteur de la base de données n'a pas pu être créé. Vérifiez les logs ci-dessus.")
 
 engine = get_engine()
+
 
 def init_db():
     """Crée les tables si elles n'existent pas."""
