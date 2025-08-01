@@ -5,15 +5,9 @@ from google.cloud.sql.connector import Connector
 from google.oauth2 import service_account
 
 def get_engine():
-    """
-    Crée une connexion intelligente qui fonctionne localement ET sur Cloud Run.
-    """
-    
-    # Si la variable d'env K_SERVICE existe, on est sur Cloud Run.
-    # L'authentification est automatique via le compte de service du service Cloud Run.
+    """Crée une connexion intelligente qui fonctionne localement ET sur Cloud Run."""
     if "K_SERVICE" in os.environ:
         connector = Connector()
-    # Sinon, on est en local. On utilise le fichier de service account des secrets.
     else:
         try:
             creds_dict = dict(st.secrets["firebase_service_account"])
@@ -22,8 +16,6 @@ def get_engine():
         except Exception as e:
             st.error(f"Erreur d'initialisation du connecteur en local : {e}")
             return None
-
-    # Logique de connexion commune
     try:
         instance_connection_name = st.secrets["database"]["instance_connection_name"]
         db_user = st.secrets["database"]["db_user"]
@@ -51,42 +43,37 @@ def init_db():
     with engine.connect() as connection:
         connection.execute(text("""
         CREATE TABLE IF NOT EXISTS connections (
-            id SERIAL PRIMARY KEY,
-            user_id VARCHAR(255) NOT NULL,
-            name VARCHAR(255) NOT NULL,
-            url TEXT NOT NULL,
-            db_name VARCHAR(255) NOT NULL,
-            username VARCHAR(255) NOT NULL,
-            password_encrypted BYTEA,
-            UNIQUE (user_id, name)
-        );
-        """))
+            id SERIAL PRIMARY KEY, user_id VARCHAR(255) NOT NULL, name VARCHAR(255) NOT NULL,
+            url TEXT NOT NULL, db_name VARCHAR(255) NOT NULL, username VARCHAR(255) NOT NULL,
+            password_encrypted BYTEA, UNIQUE (user_id, name)
+        );"""))
         connection.execute(text("""
         CREATE TABLE IF NOT EXISTS users (
-            user_id VARCHAR(255) PRIMARY KEY,
-            email VARCHAR(255) UNIQUE NOT NULL,
+            user_id VARCHAR(255) PRIMARY KEY, email VARCHAR(255) UNIQUE NOT NULL,
             subscription_status VARCHAR(50) DEFAULT 'inactive'
-        );
-        """))
+        );"""))
         connection.commit()
 
 def get_or_create_user(user_id: str, email: str):
-    """Récupère un utilisateur ou le crée s'il n'existe pas de manière atomique."""
+    """Récupère un utilisateur ou le crée/met à jour de manière atomique."""
     if not engine: return None
     
     with engine.connect() as connection:
-        insert_sql = text("""
+        # ### MODIFIÉ ### : Utilisation de ON CONFLICT ... DO UPDATE ... RETURNING
+        # Cette commande garantit que l'utilisateur est inséré ou mis à jour,
+        # et retourne la ligne correspondante en une seule opération.
+        upsert_sql = text("""
             INSERT INTO users (user_id, email)
             VALUES (:user_id, :email)
-            ON CONFLICT (email) DO NOTHING;
+            ON CONFLICT (email)
+            DO UPDATE SET user_id = EXCLUDED.user_id
+            RETURNING *;
         """)
-        connection.execute(insert_sql, {"user_id": user_id, "email": email})
         
-        user_query = text("SELECT * FROM users WHERE user_id = :user_id")
-        user = connection.execute(user_query, {"user_id": user_id}).first()
+        result = connection.execute(upsert_sql, {"user_id": user_id, "email": email}).first()
         connection.commit()
         
-        return dict(user._mapping) if user else None
+        return dict(result._mapping) if result else None
 
 def update_user_subscription(user_id: str, status: str):
     """Met à jour le statut d'abonnement d'un utilisateur."""
@@ -100,8 +87,7 @@ def update_user_subscription(user_id: str, status: str):
 
 def load_connections(user_id: str):
     """Charge les connexions Odoo pour un utilisateur spécifique."""
-    if not engine or not user_id:
-        return []
+    if not engine or not user_id: return []
     query = text("SELECT * FROM connections WHERE user_id = :user_id ORDER BY name")
     try:
         with engine.connect() as connection:
@@ -114,17 +100,14 @@ def load_connections(user_id: str):
 def save_connection(user_id: str, name: str, url: str, db_name: str, username: str, password: str):
     """Sauvegarde ou met à jour une connexion Odoo pour un utilisateur."""
     from utils.security import encrypt_data
-    if not engine or not user_id:
-        return
+    if not engine or not user_id: return
     encrypted_password = encrypt_data(password)
     upsert_sql = text("""
         INSERT INTO connections (user_id, name, url, db_name, username, password_encrypted)
         VALUES (:user_id, :name, :url, :db_name, :username, :password_encrypted)
         ON CONFLICT (user_id, name)
         DO UPDATE SET
-            url = EXCLUDED.url,
-            db_name = EXCLUDED.db_name,
-            username = EXCLUDED.username,
+            url = EXCLUDED.url, db_name = EXCLUDED.db_name, username = EXCLUDED.username,
             password_encrypted = EXCLUDED.password_encrypted;
     """)
     try:
