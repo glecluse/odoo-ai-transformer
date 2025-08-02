@@ -18,4 +18,4 @@ EXPOSE 8501
 
 # Commande pour démarrer l'application lorsque le conteneur démarre
 # healthz est un endpoint de santé que Cloud Run peut utiliser
-CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.enableCORS=false", "--server.enableXsrfProtection=false"]
+CMD ["sh", "-c", "streamlit run app.py --server.port=$PORT --server.enableCORS=false --server.enableXsrfProtection=false"]
