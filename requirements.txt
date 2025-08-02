@@ -4,3 +4,6 @@ openai
 PyPDF2
 google-cloud-storage
 google-cloud-secret-manager
+sqlalchemy
+pg8000
+cloud-sql-python-connector[pg8000]

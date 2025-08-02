@@ -1,44 +1,98 @@
-import sqlite3
+import os
+import sqlalchemy
+from sqlalchemy import (
+    create_engine,
+    Column,
+    Integer,
+    String,
+    UniqueConstraint,
+)
+from sqlalchemy.orm import sessionmaker, declarative_base
+from google.cloud.sql.connector import Connector
 
-DB_FILE = "connections.db"
+# SQLAlchemy declarative base
+Base = declarative_base()
+
+# Définition de notre table "connections" via SQLAlchemy
+class Connection(Base):
+    __tablename__ = "connections"
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False, unique=True)
+    url = Column(String(255), nullable=False)
+    db_name = Column(String(255), nullable=False)
+    username = Column(String(255), nullable=False)
+
+    UniqueConstraint("name")
+
+# Initialisation du connecteur Cloud SQL
+connector = Connector()
+
+def get_engine():
+    """Crée et retourne le moteur de connexion SQLAlchemy."""
+
+    # Récupération des variables d'environnement qui seront fournies par Cloud Run
+    db_user = os.environ["DB_USER"]  # e.g. 'postgres'
+    db_pass = os.environ["DB_PASS"]  # e.g. 'your-password'
+    db_name = os.environ["DB_NAME"]  # e.g. 'odoo_ai_db'
+    instance_connection_name = os.environ["INSTANCE_CONNECTION_NAME"] # e.g. 'project:region:instance'
+
+    def getconn():
+        # Le connecteur gère la connexion sécurisée
+        conn = connector.connect(
+            instance_connection_name,
+            "pg8000",
+            user=db_user,
+            password=db_pass,
+            db=db_name,
+        )
+        return conn
+
+    engine = create_engine("postgresql+pg8000://", creator=getconn)
+    return engine
+
+# Création du moteur global pour l'application
+engine = get_engine()
+Session = sessionmaker(bind=engine)
 
 def init_db():
-    """Crée la table des connexions si elle n'existe pas."""
-    with sqlite3.connect(DB_FILE) as con:
-        cur = con.cursor()
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS connections (
-                id INTEGER PRIMARY KEY,
-                name TEXT UNIQUE NOT NULL,
-                url TEXT NOT NULL,
-                db_name TEXT NOT NULL,
-                username TEXT NOT NULL
-            )""")
-        con.commit()
+    """Crée toutes les tables dans la base de données."""
+    Base.metadata.create_all(engine)
 
 def load_connections():
-    """Charge toutes les connexions sauvegardées depuis la base de données."""
+    """Charge toutes les connexions depuis la base de données."""
+    session = Session()
     try:
-        with sqlite3.connect(DB_FILE) as con:
-            con.row_factory = sqlite3.Row
-            cur = con.cursor()
-            cur.execute("SELECT * FROM connections ORDER BY name")
-            return [dict(row) for row in cur.fetchall()]
-    except sqlite3.OperationalError:
-        # La table n'existe probablement pas encore, initialisons-la
-        init_db()
-        return []
-
+        connections = session.query(Connection).order_by(Connection.name).all()
+        # Convertit les objets en dictionnaires pour correspondre à l'ancien format
+        return [
+            {
+                "id": c.id, "name": c.name, "url": c.url, 
+                "db_name": c.db_name, "username": c.username
+            } for c in connections
+        ]
+    finally:
+        session.close()
 
 def save_connection(name, url, db_name, username):
     """Sauvegarde ou met à jour une connexion."""
-    with sqlite3.connect(DB_FILE) as con:
-        cur = con.cursor()
-        cur.execute("""
-            INSERT INTO connections (name, url, db_name, username) VALUES (?, ?, ?, ?)
-            ON CONFLICT(name) DO UPDATE SET
-                url=excluded.url,
-                db_name=excluded.db_name,
-                username=excluded.username
-        """, (name, url, db_name, username))
-        con.commit()
+    session = Session()
+    try:
+        # Cherche si une connexion avec ce nom existe déjà
+        existing_conn = session.query(Connection).filter_by(name=name).one_or_none()
+
+        if existing_conn:
+            # Mise à jour
+            existing_conn.url = url
+            existing_conn.db_name = db_name
+            existing_conn.username = username
+        else:
+            # Création
+            new_conn = Connection(name=name, url=url, db_name=db_name, username=username)
+            session.add(new_conn)
+
+        session.commit()
+    except:
+        session.rollback()
+        raise
+    finally:
+        session.close()
