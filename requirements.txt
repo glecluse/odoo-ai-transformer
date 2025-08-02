@@ -7,3 +7,4 @@ google-cloud-secret-manager
 sqlalchemy
 pg8000
 cloud-sql-python-connector[pg8000]
+google-cloud-kms

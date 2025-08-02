@@ -6,6 +6,7 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+    LargeBinary # <-- MODIFIÉ : Import à ajouter
 )
 from sqlalchemy.orm import sessionmaker, declarative_base
 from google.cloud.sql.connector import Connector
@@ -21,7 +22,8 @@ class Connection(Base):
     url = Column(String(255), nullable=False)
     db_name = Column(String(255), nullable=False)
     username = Column(String(255), nullable=False)
-
+    encrypted_password = Column(LargeBinary, nullable=False) # <-- MODIFIÉ : Nouvelle colonne
+    
     UniqueConstraint("name")
 
 # Initialisation du connecteur Cloud SQL
@@ -29,12 +31,12 @@ connector = Connector()
 
 def get_engine():
     """Crée et retourne le moteur de connexion SQLAlchemy."""
-
+    
     # Récupération des variables d'environnement qui seront fournies par Cloud Run
-    db_user = os.environ["DB_USER"]  # e.g. 'postgres'
-    db_pass = os.environ["DB_PASS"]  # e.g. 'your-password'
-    db_name = os.environ["DB_NAME"]  # e.g. 'odoo_ai_db'
-    instance_connection_name = os.environ["INSTANCE_CONNECTION_NAME"] # e.g. 'project:region:instance'
+    db_user = os.environ["DB_USER"]
+    db_pass = os.environ["DB_PASS"]
+    db_name = os.environ["DB_NAME"]
+    instance_connection_name = os.environ["INSTANCE_CONNECTION_NAME"]
 
     def getconn():
         # Le connecteur gère la connexion sécurisée
@@ -67,29 +69,36 @@ def load_connections():
         return [
             {
                 "id": c.id, "name": c.name, "url": c.url, 
-                "db_name": c.db_name, "username": c.username
+                "db_name": c.db_name, "username": c.username,
+                # On ajoute la clé chiffrée pour la passer à la session
+                "encrypted_password": c.encrypted_password
             } for c in connections
         ]
     finally:
         session.close()
 
-def save_connection(name, url, db_name, username):
+# <-- MODIFIÉ : La signature et la logique de la fonction ont changé
+def save_connection(name, url, db_name, username, encrypted_password):
     """Sauvegarde ou met à jour une connexion."""
     session = Session()
     try:
         # Cherche si une connexion avec ce nom existe déjà
         existing_conn = session.query(Connection).filter_by(name=name).one_or_none()
-
+        
         if existing_conn:
             # Mise à jour
             existing_conn.url = url
             existing_conn.db_name = db_name
             existing_conn.username = username
+            existing_conn.encrypted_password = encrypted_password # Mettre à jour aussi
         else:
             # Création
-            new_conn = Connection(name=name, url=url, db_name=db_name, username=username)
+            new_conn = Connection(
+                name=name, url=url, db_name=db_name, 
+                username=username, encrypted_password=encrypted_password
+            )
             session.add(new_conn)
-
+        
         session.commit()
     except:
         session.rollback()

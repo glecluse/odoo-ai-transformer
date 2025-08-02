@@ -13,6 +13,8 @@ import utils
 # --- CONFIGURATION DE LA PAGE ET INITIALISATION ---
 st.set_page_config(layout="wide", page_title="Odoo AI Transformer", page_icon="🤖")
 
+db.init_db()
+
 # Initialisation du st.session_state
 for key in ['connection_success', 'models', 'model_fields', 'ai_models_fields', 'ai_python_code', 'transformed_df', 'conversation_history', 'last_run_params']:
     if key not in st.session_state:

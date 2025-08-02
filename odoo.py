@@ -1,14 +1,15 @@
 import streamlit as st
 import xmlrpc.client
 import pandas as pd
-from database import save_connection
+from database import save_connection # <-- MODIFIÉ : Import absolu
+import kms_services # <-- MODIFIÉ : Nouvel import
 
 def attempt_connection():
     """Tente de se connecter à Odoo avec les informations fournies dans la session."""
     url = st.session_state.url_input
     db = st.session_state.db_input
     username = st.session_state.username_input
-    password = st.session_state.password_input
+    password = st.session_state.password_input # Le mot de passe en clair vient du formulaire
 
     if not all([url, db, username, password]):
         st.error("Veuillez remplir tous les champs de connexion.")
@@ -21,15 +22,30 @@ def attempt_connection():
             uid = common.authenticate(db, username, password, {})
 
             if uid:
+                # <-- MODIFIÉ : Toute cette section est adaptée
                 models_proxy = xmlrpc.client.ServerProxy(f'{clean_url}/xmlrpc/2/object')
+                
+                # Chiffrer le mot de passe avant de le stocker
+                encrypted_pass = kms_services.encrypt_password(password)
+
+                # Mettre à jour l'état de la session
                 st.session_state.models_proxy = models_proxy
                 st.session_state.uid = uid
-                st.session_state.conn_details = {'url': url, 'db': db, 'username': username, 'password': password}
+                st.session_state.conn_details = {
+                    'url': url, 'db': db, 'username': username, 
+                    'encrypted_password': encrypted_pass # On stocke la version chiffrée
+                }
                 st.session_state.connection_success = True
 
-                # Sauvegarde de la connexion réussie
+                # Sauvegarde de la connexion réussie dans la base de données
                 connection_name = f"{db} ({username})"
-                save_connection(connection_name, url, db, username)
+                save_connection(
+                    name=connection_name, 
+                    url=url, 
+                    db_name=db, 
+                    username=username, 
+                    encrypted_password=encrypted_pass
+                )
             else:
                 st.error("Échec de l'authentification. Vérifiez vos identifiants.")
                 st.session_state.connection_success = False
@@ -44,6 +60,14 @@ def extract_data_from_odoo(models_fields):
     models_proxy = st.session_state.models_proxy
     uid = st.session_state.uid
 
+    # <-- MODIFIÉ : On déchiffre la clé avant de l'utiliser
+    try:
+        encrypted_pass_from_session = conn_details['encrypted_password']
+        odoo_password = kms_services.decrypt_password(encrypted_pass_from_session)
+    except Exception as e:
+        st.error(f"Impossible de déchiffrer la clé API Odoo. Erreur: {e}")
+        return None
+
     for model_name, fields in models_fields.items():
         try:
             limit = 5000
@@ -51,7 +75,7 @@ def extract_data_from_odoo(models_fields):
             all_records = []
             while True:
                 data_batch = models_proxy.execute_kw(
-                    conn_details['db'], uid, conn_details['password'],
+                    conn_details['db'], uid, odoo_password, # <-- On utilise la clé déchiffrée
                     model_name, 'search_read', [[]],
                     {'fields': fields, 'limit': limit, 'offset': offset}
                 )
