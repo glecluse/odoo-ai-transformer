@@ -1,19 +1,25 @@
+# Utilise une image Python officielle
 FROM python:3.11-slim
 
-# Empêche l'erreur "externally-managed-environment"
-ENV PIP_BREAK_SYSTEM_PACKAGES=1
-
-# Crée le dossier de l'application
+# Définir le répertoire de travail
 WORKDIR /app
 
-# Copie les fichiers de l'application
+# Installer les dépendances système nécessaires
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copier les fichiers requirements et installer les dépendances Python
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copier tout le contenu de l'application
 COPY . .
 
-# Installe les dépendances
-RUN pip install --upgrade pip && pip install -r requirements.txt
-
-# Port utilisé par Streamlit
+# Exposer le port utilisé par Streamlit
 EXPOSE 8080
 
-# Lance l'application Streamlit
-CMD ["streamlit", "run", "app.py", "--server.port=8080", "--server.address=0.0.0.0"]
+# Commande pour lancer l'app Streamlit sur Cloud Run
+CMD ["streamlit", "run", "app.py", "--server.port=8080", "--server.address=0.0.0.0", "--server.headless=true"]
