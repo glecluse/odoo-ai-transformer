@@ -1,20 +1,19 @@
-# Dockerfile
-
 FROM python:3.11-slim
 
-# Installe les bibliothèques système requises pour cryptography, pg8000, etc.
-RUN apt-get update && apt-get install -y \
-    gcc \
-    libffi-dev \
-    libpq-dev \
-    libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
+# Empêche l'erreur "externally-managed-environment"
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
 
+# Crée le dossier de l'application
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
+# Copie les fichiers de l'application
 COPY . .
 
-CMD ["streamlit", "run", "app.py", "--server.port=8080", "--server.enableCORS=false", "--server.enableXsrfProtection=false"]
+# Installe les dépendances
+RUN pip install --upgrade pip && pip install -r requirements.txt
+
+# Port utilisé par Streamlit
+EXPOSE 8080
+
+# Lance l'application Streamlit
+CMD ["streamlit", "run", "app.py", "--server.port=8080", "--server.address=0.0.0.0"]
