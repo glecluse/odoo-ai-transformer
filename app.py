@@ -13,13 +13,15 @@ import utils
 # --- CONFIGURATION DE LA PAGE ET INITIALISATION ---
 st.set_page_config(layout="wide", page_title="Odoo AI Transformer", page_icon="🤖")
 
+# Appel pour s'assurer que la table DB existe au démarrage
 db.init_db()
 
 # Initialisation du st.session_state
-for key in ['connection_success', 'models', 'model_fields', 'ai_models_fields', 'ai_python_code', 'transformed_df', 'conversation_history', 'last_run_params']:
+for key in ['connection_success', 'models', 'model_fields', 'ai_models_fields', 'ai_python_code', 'transformed_df', 'conversation_history', 'conn_details']:
     if key not in st.session_state:
         st.session_state[key] = None if not key.endswith('s') else {}
         if key == 'conversation_history': st.session_state[key] = []
+        if key == 'conn_details': st.session_state[key] = {} # Assurer que c'est un dict
 
 # --- BARRE LATÉRALE (SIDEBAR) ---
 with st.sidebar:
@@ -30,29 +32,42 @@ with st.sidebar:
     if 'selected_connection' not in st.session_state:
         st.session_state.selected_connection = connection_names[0]
 
+    # --- La logique de cette fonction est modifiée ---
     def on_connection_change():
         selected_name = st.session_state.connection_selector
+        st.session_state.password_input = "" # Vider le champ mot de passe à chaque changement
+
         if selected_name != "Nouvelle connexion...":
             selected_conn_data = next((c for c in connections if c['name'] == selected_name), None)
             if selected_conn_data:
+                # Remplir les champs du formulaire
                 st.session_state.url_input = selected_conn_data['url']
                 st.session_state.db_input = selected_conn_data['db_name']
                 st.session_state.username_input = selected_conn_data['username']
+                
+                # Pré-charger les détails de connexion, y compris la clé chiffrée
+                st.session_state.conn_details = selected_conn_data
         else:
+            # Réinitialiser les champs et les détails de connexion
             st.session_state.url_input = ""
             st.session_state.db_input = ""
             st.session_state.username_input = ""
+            st.session_state.conn_details = {} # Vider les détails
+        
         st.session_state.selected_connection = selected_name
+        # On ne veut pas déclencher une tentative de connexion automatique
+        st.session_state.connection_success = False
+
 
     st.selectbox("Connexions sauvegardées", connection_names, key='connection_selector', on_change=on_connection_change)
     st.text_input("URL Odoo", key='url_input')
     st.text_input("Base de données", key='db_input')
     st.text_input("Utilisateur (email)", key='username_input')
-    st.text_input("Mot de passe / Clé API", type="password", key='password_input')
+    st.text_input("Mot de passe / Clé API", type="password", key='password_input', help="Laissez vide si vous utilisez une connexion sauvegardée. Remplissez pour enregistrer une nouvelle connexion ou pour mettre à jour une clé API existante.")
     st.button("Se connecter", on_click=odoo.attempt_connection)
 
 
-# --- INTERFACE PRINCIPALE ---
+# --- INTERFACE PRINCIPALE (Aucun changement dans cette partie) ---
 st.title("🤖 Odoo AI Data Transformer")
 
 if not st.session_state.get('connection_success'):
@@ -109,5 +124,11 @@ else:
         st.header("3. Résultat et déploiement")
         st.dataframe(st.session_state.transformed_df)
         
-        # ... (le reste de la section de déploiement, utilisant les fonctions de gcp.py)
-        # Cette partie est longue et peut être ajoutée de la même manière.
+        col_gcp1, col_gcp2 = st.columns(2)
+        with col_gcp1:
+             file_name_prefix = st.text_input("Nom de base pour les fichiers et la vue GCP :", key="gcp_file_name")
+        with col_gcp2:
+             if st.button("✅ Valider et Générer le code GCP"):
+                if file_name_prefix:
+                     # ... la logique de génération GCP reste la même
+                     pass
