@@ -13,9 +13,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copier tout le code de l'application dans le conteneur
 COPY . .
 
-# Exposer le port sur lequel Streamlit s'exécute par défaut
-EXPOSE 8501
-
 # Commande pour démarrer l'application lorsque le conteneur démarre
-# healthz est un endpoint de santé que Cloud Run peut utiliser
-CMD ["sh", "-c", "streamlit run app.py --server.port=$PORT --server.enableCORS=false --server.enableXsrfProtection=false"]
+# Cette version est la plus robuste pour interpréter les variables d'environnement
+CMD ["sh", "-c", "streamlit run app.py --server.port=$PORT"]
