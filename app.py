@@ -7,7 +7,7 @@ import stripe
 st.set_page_config(layout="wide", page_title="Odoo AI Transformer", page_icon="🤖")
 
 # Importations depuis nos modules
-from utils.db import init_db, load_connections, get_or_create_user, update_user_subscription
+from utils.db import init_db, load_connections, get_or_create_user, update_user_subscription, engine
 from utils.security import FERNET, generate_and_display_key, SAVED_PASSWORD_PLACEHOLDER, sanitize_for_gcs
 from utils.odoo import attempt_connection, extract_and_process_odoo_data
 from services.openai_service import generate_transformation_plan, generate_looker_studio_instructions
@@ -15,8 +15,6 @@ from services.gcp_service import generate_gcp_function_code, generate_bigquery_v
 from utils.auth_service import sign_up, sign_in, get_user_profile
 
 # --- CONFIGURATION ET INITIALISATION ---
-init_db()
-
 # Vérification des secrets au démarrage
 if not all(st.secrets.get(key) for key in ["OPENAI_API_KEY", "WEB_API_KEY", "stripe", "firebase_service_account", "database"]):
     st.error("Un ou plusieurs secrets ne sont pas configurés dans votre fichier secrets.toml.")
@@ -24,6 +22,21 @@ if not all(st.secrets.get(key) for key in ["OPENAI_API_KEY", "WEB_API_KEY", "str
 if not FERNET:
     generate_and_display_key()
     st.stop()
+
+# ### NOUVEAU ### : Test de connexion bloquant à la base de données
+if engine is None:
+    st.error("Échec de la création du moteur de la base de données. L'application ne peut pas démarrer. Vérifiez les logs de démarrage pour plus de détails.")
+    st.stop()
+
+try:
+    connection = engine.connect()
+    connection.close()
+except Exception as e:
+    st.error(f"Le test de connexion à la base de données a échoué. L'application ne peut pas continuer.")
+    st.error(f"Erreur détaillée : {e}")
+    st.stop()
+
+init_db()
 
 # Initialisation de l'état de session pour l'utilisateur
 if 'user_info' not in st.session_state:
@@ -94,8 +107,6 @@ user_db_data = get_or_create_user(user_id, user_email)
 
 # --- VÉRIFICATION DE L'ABONNEMENT ---
 stripe.api_key = st.secrets["stripe"]["secret_key"]
-
-# ### NOUVEAU ### : Définition de l'URL de base de votre application
 BASE_URL = "https://odoo-ai-transformer-app-421844406357.europe-west9.run.app"
 
 if "session_id" in st.query_params:
@@ -107,7 +118,6 @@ if "session_id" in st.query_params:
             if retrieved_user_id == user_id:
                 update_user_subscription(user_id, "active")
                 st.success("Merci pour votre abonnement ! L'application est maintenant débloquée.")
-                st.info("Vous pouvez maintenant connecter votre base Odoo.")
                 user_db_data = get_or_create_user(user_id, user_email)
                 st.query_params.clear()
     except Exception as e:
@@ -119,8 +129,8 @@ if user_db_data.get("subscription_status") != "active":
         checkout_session = stripe.checkout.Session.create(
             line_items=[{'price': st.secrets["stripe"]["price_id"], 'quantity': 1}],
             mode='subscription',
-            success_url=BASE_URL + "/?session_id={CHECKOUT_SESSION_ID}", # Utilise la nouvelle URL
-            cancel_url=BASE_URL, # Utilise la nouvelle URL
+            success_url=BASE_URL + "/?session_id={CHECKOUT_SESSION_ID}",
+            cancel_url=BASE_URL,
             customer_email=user_email,
             metadata={'user_id': user_id}
         )
