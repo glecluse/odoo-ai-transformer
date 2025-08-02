@@ -1,11 +1,12 @@
+# requirements.txt
 streamlit
 pandas
 openai
 PyPDF2
 cryptography
 SQLAlchemy
-cloud-sql-python-connector
-pg8000
+google-cloud-sql-connector
+psycopg2-binary # <-- MODIFIÉ
 firebase-admin
 requests
-stripe
+toml
