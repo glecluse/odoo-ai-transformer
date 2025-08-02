@@ -1,7 +1,7 @@
 import streamlit as st
 import xmlrpc.client
 import pandas as pd
-from .database import save_connection
+from database import save_connection
 
 def attempt_connection():
     """Tente de se connecter à Odoo avec les informations fournies dans la session."""
