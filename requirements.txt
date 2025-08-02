@@ -1,12 +1,6 @@
-# requirements.txt
 streamlit
 pandas
 openai
 PyPDF2
-cryptography
-SQLAlchemy
-google-cloud-sql-connector
-psycopg2-binary # <-- MODIFIÉ
-firebase-admin
-requests
-toml
+google-cloud-storage
+google-cloud-secret-manager
