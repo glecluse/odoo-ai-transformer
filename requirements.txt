@@ -4,7 +4,12 @@ openai
 PyPDF2
 google-cloud-storage
 google-cloud-secret-manager
-sqlalchemy
-pg8000
-cloud-sql-python-connector[pg8000]
+# On déclare les paquets séparément pour éviter le bug de résolution
+psycopg2-binary==2.9.9
 google-cloud-kms
+requests==2.32.3
+firebase-admin
+requests
+streamlit-oauth
+google-cloud-firestore
+stripe

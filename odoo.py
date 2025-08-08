@@ -1,8 +1,11 @@
+# odoo.py
+
 import streamlit as st
 import xmlrpc.client
 import pandas as pd
 from database import save_connection
 import kms_services
+import traceback
 
 def attempt_connection():
     """
@@ -23,7 +26,6 @@ def attempt_connection():
     password_to_use = None
     encrypted_pass_to_save = None
 
-    # Scénario 1: Utiliser une connexion sauvegardée (le champ mdp est vide mais on a une clé chiffrée en session)
     if not password_from_form and saved_conn_details.get('encrypted_password'):
         try:
             encrypted_pass_to_save = saved_conn_details['encrypted_password']
@@ -32,7 +34,6 @@ def attempt_connection():
             st.error(f"Erreur lors du déchiffrement de la clé API sauvegardée : {e}")
             return
             
-    # Scénario 2: Nouvelle connexion ou modification du mot de passe (le champ mdp est rempli)
     elif password_from_form:
         password_to_use = password_from_form
         try:
@@ -41,12 +42,10 @@ def attempt_connection():
             st.error(f"Erreur lors du chiffrement de la nouvelle clé API : {e}")
             return
     
-    # Scénario 3: Erreur, aucun mot de passe fourni
     else:
         st.error("Veuillez entrer un mot de passe pour une nouvelle connexion.")
         return
 
-    # --- Tentative de connexion à Odoo ---
     with st.spinner("Connexion à Odoo..."):
         try:
             clean_url = url.rstrip('/')
@@ -56,15 +55,23 @@ def attempt_connection():
             if uid:
                 models_proxy = xmlrpc.client.ServerProxy(f'{clean_url}/xmlrpc/2/object')
                 
+                # 1. On crée le nom de la connexion d'abord
+                connection_name = f"{db} ({username})"
+                
+                # 2. On stocke TOUTES les informations dans la session, y compris le nom
                 st.session_state.models_proxy = models_proxy
                 st.session_state.uid = uid
+                st.session_state.password_to_use = password_to_use
                 st.session_state.conn_details = {
-                    'url': url, 'db': db, 'username': username, 
+                    'name': connection_name, # <-- LIGNE CORRIGÉE
+                    'url': url, 
+                    'db': db, 
+                    'username': username, 
                     'encrypted_password': encrypted_pass_to_save
                 }
                 st.session_state.connection_success = True
 
-                connection_name = f"{db} ({username})"
+                # 3. On sauvegarde en base de données
                 save_connection(
                     name=connection_name, url=url, db_name=db, 
                     username=username, encrypted_password=encrypted_pass_to_save
@@ -76,43 +83,30 @@ def attempt_connection():
             st.error(f"Erreur de connexion : {e}")
             st.session_state.connection_success = False
 
-
-def extract_data_from_odoo(models_fields):
+def get_large_dataset_paginated(models_proxy, db, uid, password, model_name, domain=[], fields=[], chunk_size=2000):
     """
-    Extrait les données d'Odoo pour les modèles et champs spécifiés.
-    Cette fonction est inchangée mais incluse pour que le fichier soit complet.
+    Récupère un grand volume de données d'Odoo par lots (pagination).
+    C'est un générateur qui "yield" des DataFrames Pandas pour chaque lot.
     """
-    dataframes = {}
-    conn_details = st.session_state.conn_details
-    models_proxy = st.session_state.models_proxy
-    uid = st.session_state.uid
-
-    try:
-        encrypted_pass_from_session = conn_details['encrypted_password']
-        odoo_password = kms_services.decrypt_password(encrypted_pass_from_session)
-    except Exception as e:
-        st.error(f"Impossible de déchiffrer la clé API Odoo. Erreur: {e}")
-        return None
-
-    for model_name, fields in models_fields.items():
+    offset = 0
+    print(f"Début de la récupération paginée pour le modèle {model_name}...")
+    
+    while True:
         try:
-            limit = 5000
-            offset = 0
-            all_records = []
-            while True:
-                data_batch = models_proxy.execute_kw(
-                    conn_details['db'], uid, odoo_password,
-                    model_name, 'search_read', [[]],
-                    {'fields': fields, 'limit': limit, 'offset': offset}
-                )
-                if not data_batch:
-                    break
-                all_records.extend(data_batch)
-                offset += limit
-                st.info(f"Chargement de {len(all_records)} lignes pour {model_name}...")
+            print(f"Récupération du lot : offset={offset}, limit={chunk_size}")
             
+            records = models_proxy.execute_kw(
+                db, uid, password, model_name, 'search_read',
+                [domain],
+                {'fields': fields, 'limit': chunk_size, 'offset': offset}
+            )
+
+            if not records:
+                print("Fin de la récupération : plus de données.")
+                break
+
             processed_data = []
-            for record in all_records:
+            for record in records:
                 new_record = {}
                 for field, value in record.items():
                     if isinstance(value, list) and len(value) == 2 and isinstance(value[0], int):
@@ -123,9 +117,10 @@ def extract_data_from_odoo(models_fields):
                         new_record[field] = value
                 processed_data.append(new_record)
 
-            df = pd.DataFrame(processed_data)
-            dataframes[model_name] = df
+            yield pd.DataFrame(processed_data)
+
+            offset += chunk_size
+
         except Exception as e:
-            st.error(f"Erreur lors de l'extraction de {model_name}: {e}")
-            return None
-    return dataframes
+            print(f"Une erreur est survenue lors de la récupération du lot à l'offset {offset}: {e}")
+            raise e

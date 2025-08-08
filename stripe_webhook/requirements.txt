@@ -1,0 +1,4 @@
+# stripe_webhook/requirements.txt
+stripe
+functions-framework
+google-cloud-firestore

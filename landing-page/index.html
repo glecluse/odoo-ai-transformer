@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OdooFlow - Connectez Odoo à Vos Outils de BI, Sans Effort</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: {
+                            DEFAULT: '#4f46e5', // Indigo 600
+                            hover: '#4338ca'  // Indigo 700
+                        },
+                        dark: '#111827', // Gray 900
+                        light: '#f9fafb' // Gray 50
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Ajout d'une transition douce pour tous les éléments */
+        * {
+            transition: all 0.2s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-white text-dark antialiased">
+
+    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-200">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="font-extrabold text-2xl text-primary">OdooFlow.app</div>
+            <a href="https://app.odooflow.app" class="bg-primary text-white font-semibold px-5 py-2 rounded-lg shadow-md hover:bg-primary-hover transform hover:-translate-y-0.5">
+                Accéder à l'application
+            </a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="bg-light">
+            <div class="container mx-auto px-6 py-20 lg:py-32 grid lg:grid-cols-2 gap-12 items-center">
+                <div class="hero-content">
+                    <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-6">Libérez vos données <span class="text-primary">Odoo</span>. Visualisez-les <span class="text-primary">où vous voulez</span>.</h1>
+                    <p class="text-lg text-gray-600 mb-8">Arrêtez les exports manuels. OdooFlow connecte votre ERP à Google BigQuery, vous permettant de brancher n'importe quel outil de BI pour créer des rapports automatisés.</p>
+                    <a href="https://app.odooflow.app" class="inline-block bg-primary text-white font-bold text-lg px-8 py-4 rounded-lg shadow-xl hover:bg-primary-hover transform hover:-translate-y-1">
+                        Commencer l'analyse
+                    </a>
+                </div>
+                <div class="hero-image">
+                    <img src="app-screenshot.png" alt="Aperçu de l'application OdooFlow" class="rounded-2xl shadow-2xl transform hover:scale-105">
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-white py-20 lg:py-24">
+            <div class="container mx-auto px-6 text-center">
+                <h2 class="text-3xl lg:text-4xl font-bold mb-4">De Odoo à votre Dashboard en 3 Étapes</h2>
+                <p class="text-gray-500 max-w-2xl mx-auto mb-16">Un processus simple et rapide pour libérer la puissance de vos données.</p>
+                <div class="grid md:grid-cols-3 gap-8 text-left">
+                    <div class="bg-light p-8 rounded-xl border border-gray-200">
+                        <div class="bg-primary text-white w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl mb-4">1</div>
+                        <h3 class="text-xl font-bold mb-2">Connectez & Décrivez</h3>
+                        <p class="text-gray-600">Branchez votre base Odoo en toute sécurité et décrivez en français le rapport que vous souhaitez.</p>
+                    </div>
+                    <div class="bg-light p-8 rounded-xl border border-gray-200">
+                        <div class="bg-primary text-white w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl mb-4">2</div>
+                        <h3 class="text-xl font-bold mb-2">Générez & Déployez</h3>
+                        <p class="text-gray-600">Notre IA génère le code et les instructions pour déployer votre pipeline sur votre projet Google Cloud.</p>
+                    </div>
+                    <div class="bg-light p-8 rounded-xl border border-gray-200">
+                        <div class="bg-primary text-white w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl mb-4">3</div>
+                        <h3 class="text-xl font-bold mb-2">Visualisez !</h3>
+                        <p class="text-gray-600">Connectez votre outil de BI (Tableau, Power BI, etc.) à BigQuery pour construire des rapports percutants.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="py-20 lg:py-24">
+            <div class="container mx-auto px-6 text-center">
+                <h2 class="text-3xl lg:text-4xl font-bold mb-4">Compatible avec les outils que vous aimez</h2>
+                <p class="text-gray-500 max-w-2xl mx-auto mb-12">Connectez-vous à la plateforme que votre équipe maîtrise déjà.</p>
+                <div class="flex justify-center items-center space-x-8 md:space-x-12">
+                    
+                    
+                    
+                </div>
+            </div>
+        </section>
+
+
+        <section class="bg-dark text-white py-20 lg:py-24 overflow-hidden">
+            <div class="container mx-auto px-6 grid lg:grid-cols-2 gap-16 items-center">
+                <div class="result-content relative z-10">
+                    <h2 class="text-3xl lg:text-4xl font-bold leading-snug mb-6">Prenez des décisions basées sur les faits, pas sur des intuitions.</h2>
+                    <p class="text-lg text-gray-300 mb-8">Une fois votre pipeline en place, vos données Odoo sont mises à jour automatiquement. Explorez-les dans **votre outil de BI favori** pour :</p>
+                    <ul class="space-y-4">
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-green-400 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span><strong>Suivre vos indicateurs clés</strong> en temps réel sans effort manuel.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-green-400 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span><strong>Partager des analyses claires</strong> et interactives avec vos équipes.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 text-green-400 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span><strong>Piloter votre activité avec précision</strong> grâce à des données fiables et à jour.</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="result-image relative">
+                    <div class="absolute -top-10 -right-10 w-72 h-72 bg-primary/20 rounded-full filter blur-3xl opacity-50"></div>
+                    <img src="app-screenshot2.png" alt="Exemple de tableau de bord BI connecté à Odoo" class="relative z-10 rounded-2xl shadow-2xl transform lg:rotate-3 lg:hover:-rotate-1 lg:scale-105">
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-light">
+        <div class="container mx-auto px-6 py-8 text-center text-gray-500">
+            <p>&copy; 2025 OdooFlow.app - Tous droits réservés.</p>
+        </div>
+    </footer>
+
+</body>
+</html>
